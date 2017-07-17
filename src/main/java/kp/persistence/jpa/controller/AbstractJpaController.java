@@ -6,7 +6,10 @@ import java.util.List;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.TypedQuery;
+import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Root;
+import javax.persistence.metamodel.SingularAttribute;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,7 +20,7 @@ public abstract class AbstractJpaController<T> implements JpaController<T>, Seri
     private final Logger logger = LogManager.getLogger(AbstractJpaController.class);
 
     private EntityManagerFactory emf = null;
-    
+
     private Class<T> classType;
 
     protected AbstractJpaController(EntityManagerFactory emf, Class<T> classType) {
@@ -30,7 +33,9 @@ public abstract class AbstractJpaController<T> implements JpaController<T>, Seri
     }
 
     public abstract Object getPrimaryKey(T entity);
-    
+
+    public abstract SingularAttribute<T, ?> getDefaultOrderBy();
+
     public List<T> getAll() {
         return get(true, -1, -1);
     }
@@ -43,12 +48,15 @@ public abstract class AbstractJpaController<T> implements JpaController<T>, Seri
         EntityManager em = null;
         try {
             em = getEntityManager();
-            CriteriaQuery<T> cq = em.getCriteriaBuilder().createQuery(this.classType);
-            cq.select(cq.from(this.classType));
+            CriteriaBuilder cb = em.getCriteriaBuilder();
+            CriteriaQuery<T> cq = cb.createQuery(this.classType);
+            Root<T> query = cq.from(this.classType);
+            cq.select(query);
+            cq.orderBy(cb.asc(query.get(getDefaultOrderBy())));
             TypedQuery<T> q = em.createQuery(cq);
             if (!all) {
-                q.setMaxResults(maxResults);
                 q.setFirstResult(firstResult);
+                q.setMaxResults(maxResults);
             }
             return q.getResultList();
         } finally {
@@ -57,7 +65,7 @@ public abstract class AbstractJpaController<T> implements JpaController<T>, Seri
             }
         }
     }
-    
+
     public T find(int id) {
         return findByPrimaryKey(id);
     }
@@ -65,7 +73,7 @@ public abstract class AbstractJpaController<T> implements JpaController<T>, Seri
     public T find(String id) {
         return findByPrimaryKey(id);
     }
-    
+
     public T find(T entity) {
         Object id = getPrimaryKey(entity);
         return findByPrimaryKey(id);
@@ -82,7 +90,57 @@ public abstract class AbstractJpaController<T> implements JpaController<T>, Seri
             }
         }
     }
-    
+
+    public List<T> findBy(SingularAttribute<T, ?> field, Object value) {
+        return findBy(field, value, true, -1, -1);
+    }
+
+    public List<T> findBy(SingularAttribute<T, ?> field, Object value, int firstResult, int maxResults) {
+        return findBy(field, value, false, firstResult, maxResults);
+    }
+
+    public Long findByCount(SingularAttribute<T, ?> field, Object value) {
+        EntityManager em = null;
+        try {
+            em = getEntityManager();
+            CriteriaBuilder cb = em.getCriteriaBuilder();
+            CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+            Root<T> query = cq.from(this.classType);
+            cq.select(cb.count(query));
+            cq.where(cb.equal(query.get(field), value));
+            cq.orderBy(cb.asc(query.get(getDefaultOrderBy())));
+            TypedQuery<Long> q = em.createQuery(cq);
+            return q.getSingleResult();
+        } finally {
+            if (em != null /* && em.isOpen() */) {
+                em.close();
+            }
+        }
+    }
+
+    private List<T> findBy(SingularAttribute<T, ?> field, Object value, boolean all, int firstResult, int maxResults) {
+        EntityManager em = null;
+        try {
+            em = getEntityManager();
+            CriteriaBuilder cb = em.getCriteriaBuilder();
+            CriteriaQuery<T> cq = cb.createQuery(this.classType);
+            Root<T> query = cq.from(this.classType);
+            cq.select(query);
+            cq.where(cb.equal(query.get(field), value));
+            cq.orderBy(cb.asc(query.get(getDefaultOrderBy())));
+            TypedQuery<T> q = em.createQuery(cq);
+            if (!all) {
+                q.setFirstResult(firstResult);
+                q.setMaxResults(maxResults);
+            }
+            return q.getResultList();
+        } finally {
+            if (em != null /* && em.isOpen() */) {
+                em.close();
+            }
+        }
+    }
+
     public T create(T entity) {
         return this.performTransaction(entity, (EntityManager em, T entity2) -> em.persist(entity2));
     }
@@ -127,5 +185,5 @@ public abstract class AbstractJpaController<T> implements JpaController<T>, Seri
     private interface Transaction<T> {
         public void execute(EntityManager em, T entity);
     }
-    
+
 }
