@@ -4,9 +4,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.github.ketal</groupId>
-    <artifactId>jpa-persistence-base</artifactId>
+    <artifactId>persistence-base</artifactId>
     <packaging>jar</packaging>
-    <name>jpa-persistence-base</name>
+    <name>persistence-base</name>
     <version>1.0.0-SNAPSHOT</version>
     <description>Library to build JPA controllers. Provides CRUD functionality.</description>
 
@@ -173,8 +173,8 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <log4j.version>2.8.2</log4j.version>
         <eclipselink.version>2.6.3</eclipselink.version>
+        <log4j.version>2.8.2</log4j.version>
         <junit.version>4.12</junit.version>
     </properties>
 
