@@ -31,7 +31,7 @@ import org.apache.logging.log4j.Logger;
 
 public abstract class AbstractJpaController<T> implements JpaController<T> {
 
-    private final Logger logger = LogManager.getLogger(AbstractJpaController.class);
+    private static final Logger logger = LogManager.getLogger(AbstractJpaController.class);
 
     private EntityManagerFactory emf = null;
 
@@ -45,8 +45,6 @@ public abstract class AbstractJpaController<T> implements JpaController<T> {
     protected EntityManager getEntityManager() {
         return emf.createEntityManager();
     }
-
-    public abstract Object getPrimaryKey(T entity);
 
     public abstract SingularAttribute<T, ?> getDefaultOrderBy();
 
@@ -182,12 +180,10 @@ public abstract class AbstractJpaController<T> implements JpaController<T> {
             em.getTransaction().commit();
             return entity;
         } catch (Exception ex) {
-            if (em.getTransaction().isActive()) {
-                logger.debug("Rolling back transaction");
+            if (em != null && em.getTransaction().isActive()) {
+                logger.debug("Rolling back transaction because of exception: {}", ex.getMessage());
                 em.getTransaction().rollback();
             }
-
-            // logger.error("Caught Exeption: ", ex);
             throw ex;
         } finally {
             if (em != null /* && em.isOpen() */) {
