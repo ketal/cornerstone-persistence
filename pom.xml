@@ -4,9 +4,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.github.ketal</groupId>
-    <artifactId>persistence-base</artifactId>
+    <artifactId>cornerstone-persistence</artifactId>
     <packaging>jar</packaging>
-    <name>persistence-base</name>
+    <name>cornerstone-persistence</name>
     <version>1.0.0-SNAPSHOT</version>
     <description>Library to build JPA controllers. Provides CRUD functionality.</description>
 
