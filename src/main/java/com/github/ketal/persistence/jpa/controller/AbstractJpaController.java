@@ -77,7 +77,19 @@ public abstract class AbstractJpaController<T> implements JpaController<T> {
             }
         }
     }
-
+    
+    public T getReference(Object id) {
+        EntityManager em = null;
+        try {
+            em = getEntityManager();
+            return em.getReference(this.classType, id);
+        } finally {
+            if (em != null /* && em.isOpen() */) {
+                em.close();
+            }
+        }
+    }
+    
     public T find(int id) {
         return findByPrimaryKey(id);
     }
