@@ -23,16 +23,19 @@ import javax.persistence.metamodel.SingularAttribute;
 public interface JpaController<T> {
 
     abstract Object getPrimaryKey(T entity);
+    
+    /*
+     * return converted object which is primary key type
+     */
+    abstract Object convertToPrimaryKeyType(Object id);
 
     public List<T> getAll();
     
     public List<T> get(int maxResults, int firstResult);
     
-    public T find(int id);
-    
-    public T find(String id);
-    
     public T find(T entity);
+    
+    public T findByPrimaryKey(Object entity);
     
     public List<T> findBy(SingularAttribute<T, ?> field, Object value);
 

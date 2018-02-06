@@ -31,7 +31,7 @@ import org.apache.logging.log4j.Logger;
 
 public abstract class AbstractJpaController<T> implements JpaController<T> {
 
-    private static final Logger logger = LogManager.getLogger(AbstractJpaController.class);
+    private static final Logger log = LogManager.getLogger(AbstractJpaController.class);
 
     private EntityManagerFactory emf = null;
 
@@ -45,7 +45,7 @@ public abstract class AbstractJpaController<T> implements JpaController<T> {
     protected EntityManager getEntityManager() {
         return emf.createEntityManager();
     }
-
+    
     public abstract SingularAttribute<T, ?> getDefaultOrderBy();
 
     public List<T> getAll() {
@@ -82,20 +82,12 @@ public abstract class AbstractJpaController<T> implements JpaController<T> {
         EntityManager em = null;
         try {
             em = getEntityManager();
-            return em.getReference(this.classType, id);
+            return em.getReference(this.classType, convertToPrimaryKeyType(id));
         } finally {
             if (em != null /* && em.isOpen() */) {
                 em.close();
             }
         }
-    }
-    
-    public T find(int id) {
-        return findByPrimaryKey(id);
-    }
-
-    public T find(String id) {
-        return findByPrimaryKey(id);
     }
 
     public T find(T entity) {
@@ -103,11 +95,11 @@ public abstract class AbstractJpaController<T> implements JpaController<T> {
         return findByPrimaryKey(id);
     }
 
-    private T findByPrimaryKey(Object id) {
+    public T findByPrimaryKey(Object id) {
         EntityManager em = null;
         try {
             em = getEntityManager();
-            return em.find(this.classType, id);
+            return em.find(this.classType, convertToPrimaryKeyType(id));
         } finally {
             if (em != null /* && em.isOpen() */) {
                 em.close();
@@ -193,7 +185,7 @@ public abstract class AbstractJpaController<T> implements JpaController<T> {
             return entity;
         } catch (Exception ex) {
             if (em != null && em.getTransaction().isActive()) {
-                logger.debug("Rolling back transaction because of exception: {}", ex.getMessage());
+                log.debug("Rolling back transaction because of exception: {}", ex.getMessage());
                 em.getTransaction().rollback();
             }
             throw ex;
