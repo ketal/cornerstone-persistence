@@ -23,6 +23,8 @@ import javax.persistence.EntityManagerFactory;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Path;
+import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.metamodel.SingularAttribute;
 
@@ -46,31 +48,60 @@ public abstract class AbstractJpaController<T> implements JpaController<T> {
         return emf.createEntityManager();
     }
     
-    public abstract SingularAttribute<T, ?> getDefaultOrderBy();
-
+    protected abstract SingularAttribute<T, ?> getValidOrDefaultOrderBy(String orderBy);
+    
+    protected abstract List<Predicate> getSearchPredicates(T entity, CriteriaBuilder cb, Root<T> root);
+    
+    
     public List<T> getAll() {
-        return get(true, -1, -1);
+        return get(true, -1, -1, null, false);
     }
 
     public List<T> get(int startPosition, int maxResults) {
-        return get(false, startPosition, maxResults);
+        return get(false, startPosition, maxResults, null, false);
     }
 
-    private List<T> get(boolean all, int startPosition, int maxResults) {
+    public List<T> get(int startPosition, int maxResults, String orderBy, boolean desc) {
+        return get(false, startPosition, maxResults, orderBy, desc);
+    }
+    
+    private List<T> get(boolean all, int startPosition, int maxResults, String orderBy, boolean desc) {
         EntityManager em = null;
         try {
             em = getEntityManager();
             CriteriaBuilder cb = em.getCriteriaBuilder();
             CriteriaQuery<T> cq = cb.createQuery(this.classType);
-            Root<T> query = cq.from(this.classType);
-            cq.select(query);
-            cq.orderBy(cb.asc(query.get(getDefaultOrderBy())));
+            Root<T> root = cq.from(this.classType);
+            cq.select(root);
+            Path<?> orderByExpression = root.get(getValidOrDefaultOrderBy(orderBy));
+            if(desc) {
+                cq.orderBy(cb.desc(orderByExpression));
+            } else {
+                cq.orderBy(cb.asc(orderByExpression));
+            }
             TypedQuery<T> q = em.createQuery(cq);
             if (!all) {
                 q.setFirstResult(startPosition);
                 q.setMaxResults(maxResults);
             }
             return q.getResultList();
+        } finally {
+            if (em != null /* && em.isOpen() */) {
+                em.close();
+            }
+        }
+    }
+    
+    public Long getCount() {
+        EntityManager em = null;
+        try {
+            em = getEntityManager();
+            CriteriaBuilder cb = em.getCriteriaBuilder();
+            CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+            Root<T> query = cq.from(this.classType);
+            cq.select(cb.count(query));
+            TypedQuery<Long> q = em.createQuery(cq);
+            return q.getSingleResult();
         } finally {
             if (em != null /* && em.isOpen() */) {
                 em.close();
@@ -106,44 +137,34 @@ public abstract class AbstractJpaController<T> implements JpaController<T> {
             }
         }
     }
-
+    
     public List<T> findBy(SingularAttribute<T, ?> field, Object value) {
-        return findBy(field, value, true, -1, -1);
+        return findBy(field, value, true, -1, -1, null, false);
     }
 
     public List<T> findBy(SingularAttribute<T, ?> field, Object value, int firstResult, int maxResults) {
-        return findBy(field, value, false, firstResult, maxResults);
+        return findBy(field, value, false, firstResult, maxResults, null, false);
     }
 
-    public Long findByCount(SingularAttribute<T, ?> field, Object value) {
-        EntityManager em = null;
-        try {
-            em = getEntityManager();
-            CriteriaBuilder cb = em.getCriteriaBuilder();
-            CriteriaQuery<Long> cq = cb.createQuery(Long.class);
-            Root<T> query = cq.from(this.classType);
-            cq.select(cb.count(query));
-            cq.where(cb.equal(query.get(field), value));
-            cq.orderBy(cb.asc(query.get(getDefaultOrderBy())));
-            TypedQuery<Long> q = em.createQuery(cq);
-            return q.getSingleResult();
-        } finally {
-            if (em != null /* && em.isOpen() */) {
-                em.close();
-            }
-        }
+    public List<T> findBy(SingularAttribute<T, ?> field, Object value, int firstResult, int maxResults, String orderBy, boolean desc) {
+        return findBy(field, value, false, firstResult, maxResults, orderBy, desc);
     }
-
-    private List<T> findBy(SingularAttribute<T, ?> field, Object value, boolean all, int firstResult, int maxResults) {
+    
+    private List<T> findBy(SingularAttribute<T, ?> field, Object value, boolean all, int firstResult, int maxResults, String orderBy, boolean desc) {
         EntityManager em = null;
         try {
             em = getEntityManager();
             CriteriaBuilder cb = em.getCriteriaBuilder();
             CriteriaQuery<T> cq = cb.createQuery(this.classType);
-            Root<T> query = cq.from(this.classType);
-            cq.select(query);
-            cq.where(cb.equal(query.get(field), value));
-            cq.orderBy(cb.asc(query.get(getDefaultOrderBy())));
+            Root<T> root = cq.from(this.classType);
+            cq.select(root);
+            cq.where(cb.equal(root.get(field), value));
+            Path<?> orderByExpression = root.get(getValidOrDefaultOrderBy(orderBy));
+            if(desc) {
+                cq.orderBy(cb.desc(orderByExpression));
+            } else {
+                cq.orderBy(cb.asc(orderByExpression));
+            }
             TypedQuery<T> q = em.createQuery(cq);
             if (!all) {
                 q.setFirstResult(firstResult);
@@ -157,12 +178,90 @@ public abstract class AbstractJpaController<T> implements JpaController<T> {
         }
     }
 
+    public Long findByCount(SingularAttribute<T, ?> field, Object value) {
+        EntityManager em = null;
+        try {
+            em = getEntityManager();
+            CriteriaBuilder cb = em.getCriteriaBuilder();
+            CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+            Root<T> query = cq.from(this.classType);
+            cq.select(cb.count(query));
+            cq.where(cb.equal(query.get(field), value));
+            TypedQuery<Long> q = em.createQuery(cq);
+            return q.getSingleResult();
+        } finally {
+            if (em != null /* && em.isOpen() */) {
+                em.close();
+            }
+        }
+    }
+    
+    public List<T> findBy(T searchEntity) {
+        return findBy(searchEntity, true, -1, -1, null, false);
+    }
+
+    public List<T> findBy(T searchEntity, int firstResult, int maxResults) {
+        return findBy(searchEntity, false, firstResult, maxResults, null, false);
+    }
+
+    public List<T> findBy(T searchEntity, int firstResult, int maxResults, String orderBy, boolean desc) {
+        return findBy(searchEntity, false, firstResult, maxResults, orderBy, desc);
+    }
+    
+    private List<T> findBy(T searchEntity, boolean all, int firstResult, int maxResults, String orderBy, boolean desc) {
+        EntityManager em = null;
+        try {
+            em = getEntityManager();
+            CriteriaBuilder cb = em.getCriteriaBuilder();
+            CriteriaQuery<T> cq = cb.createQuery(this.classType);
+            Root<T> root = cq.from(this.classType);
+            List<Predicate> predicates = getSearchPredicates(searchEntity, cb, root);
+            cq.select(root);
+            cq.where(predicates.toArray(new Predicate[predicates.size()]));
+            Path<?> orderByExpression = root.get(getValidOrDefaultOrderBy(orderBy));
+            if(desc) {
+                cq.orderBy(cb.desc(orderByExpression));
+            } else {
+                cq.orderBy(cb.asc(orderByExpression));
+            }
+            TypedQuery<T> q = em.createQuery(cq);
+            if (!all) {
+                q.setFirstResult(firstResult);
+                q.setMaxResults(maxResults);
+            }
+            return q.getResultList();
+        } finally {
+            if (em != null /* && em.isOpen() */) {
+                em.close();
+            }
+        }
+    }
+    
+    public Long findByCount(T searchEntity) {
+        EntityManager em = null;
+        try {
+            em = getEntityManager();
+            CriteriaBuilder cb = em.getCriteriaBuilder();
+            CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+            Root<T> root = cq.from(this.classType);
+            List<Predicate> predicates = getSearchPredicates(searchEntity, cb, root);
+            cq.select(cb.count(root));
+            cq.where(predicates.toArray(new Predicate[predicates.size()]));
+            TypedQuery<Long> q = em.createQuery(cq);
+            return q.getSingleResult();
+        } finally {
+            if (em != null /* && em.isOpen() */) {
+                em.close();
+            }
+        }
+    }
+    
     public T create(T entity) {
         return this.performTransaction(entity, (EntityManager em, T entity2) -> em.persist(entity2));
     }
 
     public T update(T entity) {
-        return this.performTransaction(entity, (EntityManager em, T entity2) -> em.merge(entity));
+        return this.performTransaction(entity, (EntityManager em, T entity2) -> em.merge(entity2));
     }
 
     public T delete(T entity) {
@@ -198,6 +297,14 @@ public abstract class AbstractJpaController<T> implements JpaController<T> {
 
     private interface Transaction<T> {
         public void execute(EntityManager em, T entity);
+    }
+    
+    protected String getLikeString(String queryValue) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("%");
+        builder.append(queryValue.toUpperCase());
+        builder.append("%");
+        return builder.toString();
     }
 
 }

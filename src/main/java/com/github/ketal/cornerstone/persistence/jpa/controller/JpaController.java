@@ -22,27 +22,50 @@ import javax.persistence.metamodel.SingularAttribute;
 
 public interface JpaController<T> {
 
-    abstract Object getPrimaryKey(T entity);
+    /*
+     * return primary key from given entity
+     */
+    
+    public abstract Object getPrimaryKey(T entity);
     
     /*
-     * return converted object which is primary key type
+     * convert given object to primary key type and return it
      */
-    abstract Object convertToPrimaryKeyType(Object id);
-
+    public abstract Object convertToPrimaryKeyType(Object id);
+    
     public List<T> getAll();
     
     public List<T> get(int maxResults, int firstResult);
     
+    public List<T> get(int maxResults, int firstResult, String orderBy, boolean desc);
+    
+    public Long getCount();
+    
+    public T getReference(Object id);
+    
     public T find(T entity);
     
-    public T findByPrimaryKey(Object entity);
+    public T findByPrimaryKey(Object id);
     
-    public List<T> findBy(SingularAttribute<T, ?> field, Object value);
+    public List<T> findBy(T searchEntity);
+    
+    public List<T> findBy(T searchEntity, int firstResult, int maxResults);
+    
+    public List<T> findBy(T searchEntity, int firstResult, int maxResults, String orderBy, boolean desc);
+    
+    public Long findByCount(T searchEntity);
 
+    public List<T> findBy(SingularAttribute<T, ?> field, Object value);
+    
+    public List<T> findBy(SingularAttribute<T, ?> field, Object value, int firstResult, int maxResults);
+    
+    public List<T> findBy(SingularAttribute<T, ?> field, Object value, int firstResult, int maxResults, String orderBy, boolean desc);
+    
+    public Long findByCount(SingularAttribute<T, ?> field, Object value);
+    
     public T create(T entity);
     
     public T update(T entity);
 
     public T delete(T entity);
-
 }
